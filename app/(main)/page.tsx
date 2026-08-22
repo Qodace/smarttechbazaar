@@ -79,34 +79,6 @@ export default async function HomePage() {
           <BestSellersSection products={bestSellers} />
         )}
 
-        {/* Static Ad Banners Grid - 3 promotional banners */}
-        {/* <AdBannerSlider 
-          banners={[
-            {
-              id: "cables-banner",
-              image: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Cables%20Banner%20%281%29.jpg-3QEaRBpxlFsQB5qXtVdQ7IvUlIX8YJ.jpeg",
-              imageMobile: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/cable%20%20banner%20350x150_.jpg-iOIFSa6BhKJCLhyvZjP1b09gpv9NIq.jpeg",
-              alt: "High-quality data and power cables engineered for durability and lightning-fast transmission",
-              href: "/category/cables",
-            },
-            {
-              id: "desktop-banner",
-              image: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Desktop%20Banners.jpg-NxXCuf56a4qUEYkHIIWBsFRhr6iXXh.jpeg",
-              imageMobile: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/desktop%20banner%20350x150_.jpg-0qYnJo29CBIxL3DVP7Gebud7t82m01.jpeg",
-              alt: "Powerful Workstations and sleek all-in-ones designed to anchor your home or office productivity",
-              href: "/category/desktop",
-            },
-            {
-              id: "display-banner",
-              image: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Display%20Banner%20%281%29.jpg-gu1oIcOl6i73BkGckGoNbiuO40Ppe2.jpeg",
-              imageMobile: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/display%20%20banner%20350x150_.jpg-wcYFeg5A0mH7uTmDHFP7LVulsMLZd1.jpeg",
-              alt: "Crystal-clear monitors and immersive screens that bring every pixel to life with stunning detail",
-              href: "/category/display",
-            },
-          ]} 
-          showAsGrid={true}
-        /> */}
-
         {/* Dynamic Ad Banner Slider - 1500x300 banners from database */}
         {adBanners.length > 0 && (
           <AdBannerSlider banners={adBanners} />
