@@ -80,7 +80,7 @@ export default async function HomePage() {
         )}
 
         {/* Static Ad Banners Grid - 3 promotional banners */}
-        <AdBannerSlider 
+        {/* <AdBannerSlider 
           banners={[
             {
               id: "cables-banner",
@@ -105,7 +105,7 @@ export default async function HomePage() {
             },
           ]} 
           showAsGrid={true}
-        />
+        /> */}
 
         {/* Dynamic Ad Banner Slider - 1500x300 banners from database */}
         {adBanners.length > 0 && (
