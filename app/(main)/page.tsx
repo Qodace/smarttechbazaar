@@ -99,47 +99,6 @@ export default async function HomePage() {
           <MostPopularSection products={mostPopular} />
         )}
 
-        {/* Secondary Ad Banners - 4 promotional banners */}
-        <AdBannerSlider 
-          banners={[
-            {
-              id: "laptop-banner",
-              image: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/laptop%20Banner.jpg-aZ74t8huDopt1RRCwikZSJznyGUZMl.jpeg",
-              imageMobile: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/laptop%20%20%20banner%20350x150_.jpg-QwzNwHKG7YQDTvQgMNUyfQLCw9HszO.jpeg",
-              alt: "High-performance portability tailored for creators, students, and professionals on the move",
-              href: "/category/laptops",
-            },
-            {
-              id: "storage-banner",
-              image: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Storage%20%20Banner.jpg-Br2pDtXHqxUP0A7rMmWIwC6BKzMrRy.jpeg",
-              imageMobile: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/storage%20banner%20350x150_.jpg-MiKzFE7Di0afXQ8issISTZNHQzHSIn.jpeg",
-              alt: "Secure your digital life with high-speed SSDs, massive hard drives, and reliable cloud-ready solutions",
-              href: "/category/storage",
-            },
-            {
-              id: "networking-banner",
-              image: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Networking%20Banner.jpg-8TJO7lyqPmcGBoBLNeboJBiU5xTj4p.jpeg",
-              imageMobile: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/networking%20%20%20banner%20350x150_.jpg-4tbfFBsFp1vevULnC5LZYs1nq9kc0T.jpeg",
-              alt: "Blazing fast internet starts here - Stay connected, stay ahead",
-              href: "/category/networking",
-            },
-            {
-              id: "mobility-banner",
-              image: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Mobility%20Banner.jpg-fIVom9upVU5bdAYHsa9o5xGUeVS5U1.jpeg",
-              imageMobile: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/mobility%20%20%20banner%20350x150_.jpg-iA1gann5XrBSjK81afumysLvLYvfKh.jpeg",
-              alt: "Never run out of power - Smart, fast and portable charging solutions",
-              href: "/category/mobility",
-            },
-            {
-              id: "security-banner",
-              image: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Security%20Banner.jpg-placeholder.jpeg",
-              imageMobile: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/security%20%20banner%20350x150_.jpg-qZz8kztQHrIl0siABkWDjIOduswvgK.jpeg",
-              alt: "Comprehensive protection for your data and hardware with advanced software and physical locks",
-              href: "/category/security",
-            },
-          ]} 
-        />
-
         {/* Remaining Product Sections */}
         {productSections.slice(2).map((section) => (
           <ProductSection key={section.slug} section={section} />
