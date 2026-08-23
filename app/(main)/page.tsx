@@ -26,8 +26,8 @@ import {
   getHotBrands,
 } from "@/lib/data";
 
-// Enable ISR with 60 second revalidation for fast loads with fresh data
 export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   // Fetch all data in parallel using cached functions

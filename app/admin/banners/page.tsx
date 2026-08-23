@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import DeleteBannerButton from "@/components/admin/DeleteBannerButton";
 
+export const dynamic = "force-dynamic";
+
 async function getBanners() {
   try {
     await dbConnect();
