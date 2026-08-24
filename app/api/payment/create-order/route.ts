@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import Razorpay from "razorpay";
+import { getRazorpay, RAZORPAY_NOT_CONFIGURED } from "@/lib/razorpay";
 import dbConnect from "@/lib/mongodb";
 import User from "@/models/User";
 import Product from "@/models/Product";
@@ -21,12 +21,6 @@ import {
   validateObjectId,
   sanitizeString,
 } from "@/lib/validation";
-
-// Initialize Razorpay instance
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID!,
-  key_secret: process.env.RAZORPAY_KEY_SECRET!,
-});
 
 interface CartItem {
   productId: string;
@@ -89,6 +83,12 @@ function getStateCodeFromName(stateName: string): string {
 
 export async function POST(request: NextRequest) {
   try {
+    // 0. Ensure payments are configured before doing any work
+    const razorpay = getRazorpay();
+    if (!razorpay) {
+      return NextResponse.json(RAZORPAY_NOT_CONFIGURED, { status: 503 });
+    }
+
     // 1. Authenticate user
     const session = await getServerSession(authOptions);
     

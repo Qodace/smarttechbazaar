@@ -12,11 +12,25 @@ import Brand from "@/models/Brand";
 import { siteConfig, getCanonicalUrl } from "@/lib/site-config";
 import { generateCollectionPageSchema, generateOrganizationSchema } from "@/lib/schema";
 
-// Use dynamic rendering to avoid caching 404 responses
-export const dynamic = "force-dynamic";
+// Incrementally-static: the rendered page is cached and revalidated in the
+// background instead of hitting MongoDB on every single request. Admin category
+// and product mutations call revalidatePath()/revalidateTag(), so edits appear
+// immediately.
+export const revalidate = 3600;
 
 // Allow dynamic paths that weren't generated at build time
 export const dynamicParams = true;
+
+// Hard ceiling on how many products a single category page will render.
+// Without this, a category with thousands of products serialized every one of
+// them into the HTML payload.
+const CATEGORY_PRODUCT_LIMIT = 300;
+
+// Only the fields ProductCard and the filter sidebar actually read. Previously
+// this page sent whole documents — full HTML descriptions, every specification
+// row, meta tags — for every product in the category.
+const CATEGORY_PRODUCT_FIELDS =
+  "_id name slug images priceB2C priceB2B mrp stock brand category isFeatured isNewArrival isBestSeller tags";
 
 interface CategoryPageProps {
   params: Promise<{ slug: string }>;
