@@ -35,7 +35,11 @@ export const revalidate = 60;
 // the next revalidation.
 async function safeList<T>(promise: Promise<T[]>, label: string): Promise<T[]> {
   try {
-    return await promise;
+    // Keep an unavailable database from blocking the first paint for 40–60s.
+    const timeout = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error("Homepage data fetch timed out")), 2500);
+    });
+    return await Promise.race([promise, timeout]);
   } catch (error) {
     console.error(`[v0] Homepage data fetch failed (${label}):`, error);
     return [];
