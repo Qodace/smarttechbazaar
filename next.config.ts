@@ -37,12 +37,50 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "10mb",
     },
+    // Tree-shake barrel-file packages so a single icon import doesn't pull in
+    // the entire library. Meaningfully reduces client JS on every page.
+    optimizePackageImports: [
+      "lucide-react",
+      "date-fns",
+      "recharts",
+      "framer-motion",
+    ],
+  },
+  // Drop console.* from client bundles in production (keeps errors/warnings).
+  compiler: {
+    removeConsole:
+      process.env.NODE_ENV === "production"
+        ? { exclude: ["error", "warn"] }
+        : false,
   },
   // Headers for cache control - especially important for mobile app wrappers
   async headers() {
     const appVersion = process.env.VERCEL_GIT_COMMIT_SHA || Date.now().toString();
     
     return [
+      {
+        // Baseline hardening for every response
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Strict-Transport-Security", value: "max-age=63072000" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
+          },
+        ],
+      },
+      {
+        // Immutable static assets can be cached forever
+        source: "/_next/static/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
       {
         // API routes should never be cached
         source: "/api/:path*",

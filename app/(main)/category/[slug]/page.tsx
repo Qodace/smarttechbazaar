@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { cache } from "react";
 import { notFound } from "next/navigation";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -37,93 +38,121 @@ interface CategoryPageProps {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
 
-async function getCategoryData(slug: string) {
+// Wrapped in React `cache()` so generateMetadata() and the page component share
+// one result per request. Without it, every category view ran this entire set of
+// queries twice.
+const getCategoryData = cache(async (slug: string) => {
   try {
     await dbConnect();
-    
+
     // First check if the slug is for a subcategory
-    const categoryDoc = await Category.findOne({ slug, isActive: true }).lean();
+    const categoryDoc = await Category.findOne({ slug, isActive: true })
+      .select("_id name slug description image parent")
+      .lean();
     if (!categoryDoc) return null;
 
     const category = JSON.parse(JSON.stringify(categoryDoc));
     const categoryId = category._id;
     const isSubcategory = !!category.parent;
-    
-    let parentCategory = null;
-    let subcategories: typeof category[] = [];
-    let allCategoryIds: string[] = [categoryId];
 
-    if (isSubcategory) {
-      // This is a subcategory - get parent info for breadcrumb
-      const parentDoc = await Category.findById(category.parent).lean();
-      if (parentDoc) {
-        parentCategory = JSON.parse(JSON.stringify(parentDoc));
-      }
-      // Only get products from this subcategory
-      allCategoryIds = [categoryId];
-      subcategories = []; // No sub-subcategories
-    } else {
-      // This is a main category - get all subcategories
-      const subcategoryDocs = await Category.find({ 
-        parent: categoryId, 
-        isActive: true 
-      })
-        .sort({ sortOrder: 1 })
-        .lean();
-      
-      subcategories = JSON.parse(JSON.stringify(subcategoryDocs));
-      
-      // Include main category AND all subcategory IDs for product query
-      allCategoryIds = [categoryId, ...subcategories.map((s: { _id: string }) => s._id)];
-    }
+    // Resolve the parent (for breadcrumbs) or the subcategory list in one step.
+    const [parentDoc, subcategoryDocs] = await Promise.all([
+      isSubcategory
+        ? Category.findById(category.parent).select("_id name slug").lean()
+        : null,
+      isSubcategory
+        ? []
+        : Category.find({ parent: categoryId, isActive: true })
+            .select("_id name slug")
+            .sort({ sortOrder: 1 })
+            .lean(),
+    ]);
 
-    // Get ALL products from this category and its subcategories
-    const productDocs = await Product.find({ 
-      category: { $in: allCategoryIds }, 
-      isActive: true 
-    })
-      .populate("category", "name slug")
-      .sort({ isFeatured: -1, createdAt: -1 })
-      .lean();
+    const parentCategory = parentDoc ? JSON.parse(JSON.stringify(parentDoc)) : null;
+    const subcategories = JSON.parse(JSON.stringify(subcategoryDocs ?? []));
+
+    // A subcategory only shows its own products; a main category also includes
+    // everything filed under its children.
+    const allCategoryIds: string[] = isSubcategory
+      ? [categoryId]
+      : [categoryId, ...subcategories.map((s: { _id: string }) => s._id)];
+
+    const productFilter = { category: { $in: allCategoryIds }, isActive: true };
+
+    // Products, total count, and all filter facets in parallel. The facets are
+    // computed by MongoDB over the WHOLE category, so the sidebar stays accurate
+    // even though the rendered product list is capped.
+    const [productDocs, totalProducts, facetResult, subcategoryCounts] = await Promise.all([
+      Product.find(productFilter)
+        .select(CATEGORY_PRODUCT_FIELDS)
+        .populate("category", "name slug")
+        .sort({ isFeatured: -1, createdAt: -1 })
+        .limit(CATEGORY_PRODUCT_LIMIT)
+        .lean(),
+      Product.countDocuments(productFilter),
+      Product.aggregate([
+        { $match: productFilter },
+        {
+          $facet: {
+            brands: [
+              { $match: { brand: { $ne: null } } },
+              { $group: { _id: "$brand", productCount: { $sum: 1 } } },
+            ],
+            tags: [{ $unwind: "$tags" }, { $group: { _id: "$tags" } }],
+            maxPrice: [{ $group: { _id: null, max: { $max: "$priceB2C" } } }],
+          },
+        },
+      ]),
+      Product.aggregate([
+        { $match: productFilter },
+        { $group: { _id: "$category", productCount: { $sum: 1 } } },
+      ]),
+    ]);
 
     const products = JSON.parse(JSON.stringify(productDocs));
+    const facets = facetResult[0] ?? { brands: [], tags: [], maxPrice: [] };
 
-    // Calculate product count per subcategory
-    const subcategoriesWithCounts = subcategories.map((sub: { _id: string; name: string; slug: string }) => ({
-      ...sub,
-      productCount: products.filter((p: { category?: { _id: string } }) => 
-        p.category?._id === sub._id
-      ).length,
-    }));
+    // Attach per-subcategory counts from the aggregation result
+    const countByCategory = new Map<string, number>(
+      subcategoryCounts.map((c: { _id: unknown; productCount: number }) => [
+        String(c._id),
+        c.productCount,
+      ])
+    );
+    const subcategoriesWithCounts = subcategories.map(
+      (sub: { _id: string; name: string; slug: string }) => ({
+        ...sub,
+        productCount: countByCategory.get(String(sub._id)) ?? 0,
+      })
+    );
 
-    // Get unique brand names from products
-    const brandNames = [...new Set(products.map((p: { brand?: string }) => p.brand).filter(Boolean))] as string[];
-    
-    // Get brand details for the brands used in this category
-    const brandDocs = await Brand.find({ 
-      name: { $in: brandNames }, 
-      isActive: true 
-    }).lean();
+    // Look up brand details only for brands that actually appear in this category
+    const brandCountByName = new Map<string, number>(
+      facets.brands.map((b: { _id: string; productCount: number }) => [b._id, b.productCount])
+    );
+    const brandDocs = await Brand.find({
+      name: { $in: [...brandCountByName.keys()] },
+      isActive: true,
+    })
+      .select("_id name slug logo")
+      .lean();
 
-    // Count products per brand
-    const brandWithCounts = JSON.parse(JSON.stringify(brandDocs)).map((brand: { name: string }) => ({
-      ...brand,
-      productCount: products.filter((p: { brand?: string }) => p.brand === brand.name).length,
-    }));
+    const brandWithCounts = JSON.parse(JSON.stringify(brandDocs)).map(
+      (brand: { name: string }) => ({
+        ...brand,
+        productCount: brandCountByName.get(brand.name) ?? 0,
+      })
+    );
 
-    // Get unique tags from products
-    const allTags = products.flatMap((p: { tags?: string[] }) => p.tags || []);
-    const uniqueTags = [...new Set(allTags)] as string[];
-
-    // Calculate max price
-    const prices = products.map((p: { priceB2C: number }) => p.priceB2C);
-    const maxPrice = prices.length > 0 ? Math.max(...prices) : 100000;
+    const uniqueTags = facets.tags.map((t: { _id: string }) => t._id).filter(Boolean);
+    const maxPrice = facets.maxPrice[0]?.max || 100000;
 
     return {
       category,
       parentCategory,
       subcategories: subcategoriesWithCounts,
       products,
+      totalProducts,
       brands: brandWithCounts,
       tags: uniqueTags,
       maxPrice: Math.ceil(maxPrice / 1000) * 1000,
@@ -133,7 +162,7 @@ async function getCategoryData(slug: string) {
     console.error("Error fetching category data:", error);
     return null;
   }
-}
+});
 
 export async function generateMetadata({ params }: CategoryPageProps): Promise<Metadata> {
   const { slug } = await params;
@@ -169,7 +198,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     notFound();
   }
 
-  const { category, parentCategory, subcategories, products, brands, tags, maxPrice, isSubcategory } = data;
+  const { category, parentCategory, subcategories, products, totalProducts, brands, tags, maxPrice, isSubcategory } = data;
 
   // Build breadcrumb items
   const breadcrumbItems = [];
@@ -190,7 +219,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
         slug: slug,
         description: category.description || `Browse ${category.name} products`,
         image: category.image,
-        productCount: products.length,
+        productCount: totalProducts,
       },
       "category",
       products.slice(0, 10)
@@ -225,7 +254,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
               </p>
             )}
             <p className="mt-1.5 text-[10px] font-medium text-muted-foreground md:text-xs">
-              {products.length} {products.length === 1 ? "product" : "products"} found
+              {totalProducts} {totalProducts === 1 ? "product" : "products"} found
             </p>
           </div>
         </div>
