@@ -3,7 +3,7 @@ import Image from "next/image";
 import dbConnect from "@/lib/mongodb";
 import Product from "@/models/Product";
 import Category from "@/models/Category";
-import { Plus, Edit, Eye } from "lucide-react";
+import { Plus, Edit, Eye, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import DeleteProductButton from "@/components/admin/DeleteProductButton";
@@ -106,7 +106,7 @@ async function getProducts(searchParams: { [key: string]: string | string[] | un
 
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
   const params = await searchParams;
-  const { products, total, page, totalPages, categories } = await getProducts(params);
+  const { products, total, page, totalPages, categories, error } = await getProducts(params);
 
   return (
     <div className="flex flex-col gap-6">
@@ -128,6 +128,23 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
           </Link>
         </div>
       </div>
+
+      {/* Surface data-layer failures instead of silently rendering an empty
+          table, which is indistinguishable from an empty catalog. */}
+      {error && (
+        <div
+          role="alert"
+          className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3"
+        >
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+          <div>
+            <p className="font-medium text-destructive">
+              Could not load products
+            </p>
+            <p className="body-sm mt-1 text-destructive/90">{error}</p>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <ProductsFilters
@@ -277,14 +294,22 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
               ) : (
                 <tr>
                   <td colSpan={8} className="px-4 py-12 text-center">
-                    <p className="text-muted-foreground">No products found</p>
-                    <Link
-                      href="/admin/products/new"
-                      className="mt-2 inline-flex items-center gap-2 text-primary hover:underline"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Add your first product
-                    </Link>
+                    {error ? (
+                      <p className="text-muted-foreground">
+                        Products could not be loaded. See the error above.
+                      </p>
+                    ) : (
+                      <>
+                        <p className="text-muted-foreground">No products found</p>
+                        <Link
+                          href="/admin/products/new"
+                          className="mt-2 inline-flex items-center gap-2 text-primary hover:underline"
+                        >
+                          <Plus className="h-4 w-4" />
+                          Add your first product
+                        </Link>
+                      </>
+                    )}
                   </td>
                 </tr>
               )}

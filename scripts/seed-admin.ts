@@ -3,13 +3,14 @@ import bcrypt from "bcryptjs";
 
 // Read the connection string from the environment only. Never hardcode
 // database credentials in source control.
-const MONGODB_URI =
-  process.env.MONGODB_URI || process.env.MONGODB_CONNECTION_STRING;
-
-if (!MONGODB_URI) {
-  throw new Error(
-    "MongoDB connection string is not configured. Set MONGODB_URI or MONGODB_CONNECTION_STRING."
-  );
+function getMongoUri(): string {
+  const uri = process.env.MONGODB_URI || process.env.MONGODB_CONNECTION_STRING;
+  if (!uri) {
+    throw new Error(
+      "MongoDB connection string is not configured. Set MONGODB_URI or MONGODB_CONNECTION_STRING."
+    );
+  }
+  return uri;
 }
 
 // Define User Schema inline for script
@@ -45,7 +46,7 @@ const UserSchema = new mongoose.Schema(
 async function seedSuperAdmin() {
   try {
     console.log("Connecting to MongoDB...");
-    await mongoose.connect(MONGODB_URI);
+    await mongoose.connect(getMongoUri());
     console.log("Connected to MongoDB");
 
     const User = mongoose.models.User || mongoose.model("User", UserSchema);

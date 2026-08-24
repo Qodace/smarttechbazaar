@@ -48,8 +48,20 @@ async function dbConnect(): Promise<typeof mongoose> {
       bufferCommands: false,
       // Reuse a warm pool across serverless invocations instead of paying a new
       // TCP + TLS handshake per request.
-      maxPoolSize: 10,
-      minPoolSize: 0,
+      //
+      // Keep the pool deliberately small. Pages like the homepage fan out into
+      // many Promise.all queries at once; with a large cap the driver tries to
+      // open a socket per query (observed up to ~30 concurrent TLS handshakes),
+      // and the slowest ones get killed by connectTimeoutMS. A small pool makes
+      // those queries queue on a few warm, already-authenticated sockets, which
+      // is both faster and far more reliable here.
+      maxPoolSize: 5,
+      // Pre-establish several sockets in the background at startup so the 8
+      // parallel queries a page like the homepage issues land on warm,
+      // already-authenticated connections instead of each paying a handshake.
+      minPoolSize: 3,
+      // Fail fast if the pool is saturated rather than piling up requests.
+      waitQueueTimeoutMS: 20000,
       // A cold Atlas connection costs ~2s (DNS SRV + TCP + TLS + auth), and
       // opening additional pool sockets can be considerably slower. The old 3s
       // budget sat right on top of that, so sockets were killed mid-handshake
@@ -58,8 +70,13 @@ async function dbConnect(): Promise<typeof mongoose> {
       serverSelectionTimeoutMS: 30000,
       connectTimeoutMS: 30000,
       socketTimeoutMS: 45000,
-      // Keep idle sockets around between invocations.
-      maxIdleTimeMS: 60000,
+      // Never retire idle sockets. Measured handshake cost to this Atlas
+      // cluster is 1.7s-7.9s and highly variable, while actual queries run in
+      // ~250ms. Reaping idle sockets after 60s meant the next request paid that
+      // handshake again and could exceed the page-level timeout, blanking out
+      // sections. Holding the sockets open trades a little memory for
+      // consistently fast queries.
+      maxIdleTimeMS: 0,
       // Prefer IPv4 in the preview/serverless network and let the SRV record
       // select a single reachable Atlas host.
       family: 4,
