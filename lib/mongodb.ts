@@ -49,10 +49,12 @@ async function dbConnect(): Promise<typeof mongoose> {
       socketTimeoutMS: 10000,
       // Keep idle sockets around between invocations.
       maxIdleTimeMS: 60000,
+      // Prefer IPv4 in the preview/serverless network and let the SRV record
+      // select a single reachable Atlas host.
+      family: 4,
       // Skip the extra round trip Mongoose otherwise spends auto-building
       // indexes on every cold start; indexes are managed explicitly.
       autoIndex: false,
-      compressors: ["zlib" as const],
     };
 
     cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
