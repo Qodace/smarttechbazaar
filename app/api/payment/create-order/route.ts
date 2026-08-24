@@ -271,7 +271,7 @@ export async function POST(request: NextRequest) {
     const shippingCost = subtotal >= 5000 ? 0 : 99; // Free shipping above ₹5000
 
     // 9. Apply coupon discount if provided
-    let discount = 0;
+    const discount = 0;
     // TODO: Implement coupon validation from database
     // if (couponCode) {
     //   const coupon = await Coupon.findOne({ code: couponCode, isActive: true });

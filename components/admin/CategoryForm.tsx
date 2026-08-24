@@ -181,12 +181,6 @@ export default function CategoryForm({
       icon.label.toLowerCase().includes(iconSearch.toLowerCase())
   );
 
-  // Get icon component
-  const getIconComponent = (iconName: string) => {
-    const IconComponent = (LucideIcons as unknown as Record<string, React.ComponentType<{ className?: string }>>)[iconName];
-    return IconComponent || null;
-  };
-
   const SelectedIcon = formData.icon ? getIconComponent(formData.icon) : null;
 
   return (
