@@ -56,10 +56,11 @@ async function dbConnect(): Promise<typeof mongoose> {
       // those queries queue on a few warm, already-authenticated sockets, which
       // is both faster and far more reliable here.
       maxPoolSize: 5,
-      // Pre-establish several sockets in the background at startup so the 8
-      // parallel queries a page like the homepage issues land on warm,
-      // already-authenticated connections instead of each paying a handshake.
-      minPoolSize: 3,
+      // Keep exactly one socket warm. Pre-warming more made the initial
+      // connect dramatically slower (a measured 23s for 3 sockets versus ~2s
+      // for 1) because each socket pays its own TLS handshake. The pool still
+      // grows on demand up to maxPoolSize when a page fans out.
+      minPoolSize: 1,
       // Fail fast if the pool is saturated rather than piling up requests.
       waitQueueTimeoutMS: 20000,
       // A cold Atlas connection costs ~2s (DNS SRV + TCP + TLS + auth), and
