@@ -48,7 +48,7 @@ export async function GET(
       return NextResponse.redirect(image);
     }
 
-    const match = /^data:([^;,]+);base64,(.+)$/s.exec(image);
+    const match = /^data:([^;,]+);base64,([\s\S]+)$/.exec(image);
 
     if (!match) {
       return NextResponse.json(
