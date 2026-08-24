@@ -3,7 +3,6 @@ import { Suspense } from "react";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import SessionProvider from "@/components/providers/SessionProvider";
-import { CartWishlistProvider } from "@/components/providers/CartWishlistProvider";
 import { NativeAppProvider } from "@/components/providers/NativeAppProvider";
 import { LoadingBar } from "@/components/ui/LoadingBar";
 
@@ -183,9 +182,7 @@ export default function RootLayout({
         */}
         <div id="page-wrapper" style={{ overflowX: "hidden" }}>
           <SessionProvider>
-            <CartWishlistProvider>
-              <NativeAppProvider>{children}</NativeAppProvider>
-            </CartWishlistProvider>
+            <NativeAppProvider>{children}</NativeAppProvider>
           </SessionProvider>
         </div>
       </body>

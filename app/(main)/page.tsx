@@ -29,6 +29,23 @@ import {
 // Enable ISR with 60 second revalidation for fast loads with fresh data
 export const revalidate = 60;
 
+// Resolve a data fetch, falling back to an empty list if it fails.
+// A transient MongoDB error must not abort the whole production build (or blank
+// out the page) — the affected section simply renders empty and is refilled on
+// the next revalidation.
+async function safeList<T>(promise: Promise<T[]>, label: string): Promise<T[]> {
+  try {
+    // Keep an unavailable database from blocking the first paint for 40–60s.
+    const timeout = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error("Homepage data fetch timed out")), 2500);
+    });
+    return await Promise.race([promise, timeout]);
+  } catch (error) {
+    console.error(`[v0] Homepage data fetch failed (${label}):`, error);
+    return [];
+  }
+}
+
 export default async function HomePage() {
   // Fetch all data in parallel using cached functions
   const [
@@ -41,14 +58,14 @@ export default async function HomePage() {
     mostPopular,
     hotBrands,
   ] = await Promise.all([
-    getHomepageSections(),
-    getCategories(),
-    getBrands(),
-    getHeroSliderBanners(),
-    getAdBanners(),
-    getBestSellers(),
-    getMostPopular(),
-    getHotBrands(),
+    safeList(getHomepageSections(), "homepageSections"),
+    safeList(getCategories(), "categories"),
+    safeList(getBrands(), "brands"),
+    safeList(getHeroSliderBanners(), "heroSliderBanners"),
+    safeList(getAdBanners(), "adBanners"),
+    safeList(getBestSellers(), "bestSellers"),
+    safeList(getMostPopular(), "mostPopular"),
+    safeList(getHotBrands(), "hotBrands"),
   ]);
 
   // Schema markup for homepage
