@@ -35,9 +35,13 @@ export const revalidate = 60;
 // the next revalidation.
 async function safeList<T>(promise: Promise<T[]>, label: string): Promise<T[]> {
   try {
-    // Keep an unavailable database from blocking the first paint for 40–60s.
+    // Keep an unavailable database from blocking the first paint indefinitely,
+    // but stay comfortably above the cold-start cost of establishing the
+    // MongoDB connection (~2s for DNS SRV + TCP + TLS + auth). A cap below that
+    // guaranteed an empty homepage on every cold start even though the
+    // database was perfectly healthy.
     const timeout = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("Homepage data fetch timed out")), 2500);
+      setTimeout(() => reject(new Error("Homepage data fetch timed out")), 20000);
     });
     return await Promise.race([promise, timeout]);
   } catch (error) {

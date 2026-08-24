@@ -1,7 +1,16 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://admin:pVFlUkFuz3ii80RB@stb.3d0fv9t.mongodb.net/sabkatechbazar";
+// Read the connection string from the environment only. Never hardcode
+// database credentials in source control.
+const MONGODB_URI =
+  process.env.MONGODB_URI || process.env.MONGODB_CONNECTION_STRING;
+
+if (!MONGODB_URI) {
+  throw new Error(
+    "MongoDB connection string is not configured. Set MONGODB_URI or MONGODB_CONNECTION_STRING."
+  );
+}
 
 // Define User Schema inline for script
 const UserSchema = new mongoose.Schema(

@@ -82,10 +82,25 @@ async function getProducts(searchParams: { [key: string]: string | string[] | un
       page,
       totalPages: Math.ceil(total / limit),
       categories: JSON.parse(JSON.stringify(categories)),
+      error: null as string | null,
     };
   } catch (error) {
     console.error("Error fetching products:", error);
-    return { products: [], total: 0, page: 1, totalPages: 1, categories: [] };
+    // Distinguish "the database call failed" from "there are genuinely no
+    // products". Returning a bare empty list for both made a connection
+    // failure look like an empty catalog ("No products found"), which hid the
+    // real cause. The message is surfaced in the UI so the failure is visible.
+    return {
+      products: [],
+      total: 0,
+      page: 1,
+      totalPages: 1,
+      categories: [],
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unknown error while loading products",
+    };
   }
 }
 
