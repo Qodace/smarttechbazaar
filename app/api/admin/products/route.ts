@@ -28,10 +28,17 @@ export async function GET(request: NextRequest) {
     const limit = Number(searchParams.get("limit")) || 20;
     const skip = (page - 1) * limit;
 
-    // Use Promise.all for parallel execution and select only needed fields for list view
+    // Use Promise.all for parallel execution and select only needed fields for
+    // list view.
+    //
+    // `images` is deliberately excluded: most products store their images as
+    // base64 data URIs in the document (up to 1.6MB each), so including the
+    // array here made a 20-item page weigh tens of megabytes and time out.
+    // Callers that need a thumbnail should hit
+    // /api/admin/products/[id]/thumbnail instead.
     const [products, total] = await Promise.all([
       Product.find()
-        .select("_id name slug images priceB2C priceB2B mrp stock sku isActive isFeatured category brand createdAt")
+        .select("_id name slug priceB2C priceB2B mrp stock sku isActive isFeatured category brand createdAt")
         .populate("category", "name slug")
         .sort({ createdAt: -1 })
         .skip(skip)

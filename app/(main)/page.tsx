@@ -34,15 +34,28 @@ export const revalidate = 60;
 // out the page) — the affected section simply renders empty and is refilled on
 // the next revalidation.
 async function safeList<T>(promise: Promise<T[]>, label: string): Promise<T[]> {
+  // Keep an unavailable database from blocking the first paint indefinitely, but
+  // stay comfortably above the cold-start cost of establishing the MongoDB
+  // connection (handshakes to this cluster measured 1.7s-7.9s). A cap below that
+  // blanked out sections even though the database was perfectly healthy.
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    // Keep an unavailable database from blocking the first paint for 40–60s.
     const timeout = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("Homepage data fetch timed out")), 2500);
+      timer = setTimeout(
+        () => reject(new Error("Homepage data fetch timed out")),
+        20000
+      );
     });
     return await Promise.race([promise, timeout]);
   } catch (error) {
     console.error(`[v0] Homepage data fetch failed (${label}):`, error);
     return [];
+  } finally {
+    // Always cancel the timer. Leaving it pending kept a 20s timer alive for
+    // every one of the parallel fetches below, which held the request open for
+    // the full timeout even when all the queries had already resolved in
+    // milliseconds (observed as a consistent "GET / 200 in ~20000ms").
+    clearTimeout(timer);
   }
 }
 
