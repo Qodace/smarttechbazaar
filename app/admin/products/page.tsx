@@ -62,15 +62,74 @@ async function getProducts(searchParams: { [key: string]: string | string[] | un
       query.isFeatured = true;
     }
 
+    // IMPORTANT: never pull the `images` array into this list query.
+    // 637 of the ~826 products store their images as base64 data URIs inside
+    // the document, so the products collection is ~179MB with individual
+    // documents up to 1.6MB. Selecting `images` for a page of 20 rows meant
+    // transferring tens of megabytes, which blew past the query timeout and
+    // made the whole page fall into the catch block below and render
+    // "No products found" even though the data was there.
+    //
+    // Instead, project only the scalar fields the table renders and derive a
+    // lightweight thumbnail reference: pass through real URLs, and for embedded
+    // base64 images just record that one exists so the row can load it on
+    // demand from the thumbnail endpoint. This keeps the payload at ~6KB.
+    const firstImage = { $arrayElemAt: ["$images", 0] };
+
     const [products, total, categories] = await Promise.all([
-      Product.find(query)
-        // Select only necessary fields for list view - significant performance gain
-        .select("_id name slug images priceB2C priceB2B stock sku isActive isFeatured category")
-        .populate("category", "name slug")
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
+      Product.aggregate([
+        { $match: query },
+        { $sort: { createdAt: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+        {
+          $lookup: {
+            from: "categories",
+            localField: "category",
+            foreignField: "_id",
+            as: "categoryDoc",
+          },
+        },
+        {
+          $project: {
+            name: 1,
+            slug: 1,
+            sku: 1,
+            priceB2C: 1,
+            priceB2B: 1,
+            stock: 1,
+            isActive: 1,
+            isFeatured: 1,
+            category: {
+              $let: {
+                vars: { c: { $arrayElemAt: ["$categoryDoc", 0] } },
+                in: { name: "$$c.name", slug: "$$c.slug" },
+              },
+            },
+            // A directly usable image URL, when the product uses one.
+            thumbnailUrl: {
+              $cond: [
+                {
+                  $regexMatch: {
+                    input: { $ifNull: [firstImage, ""] },
+                    regex: "^https?://",
+                  },
+                },
+                firstImage,
+                null,
+              ],
+            },
+            // Flags an image stored inline as base64 so it can be fetched
+            // separately instead of inflating this response.
+            hasEmbeddedImage: {
+              $regexMatch: {
+                input: { $ifNull: [firstImage, ""] },
+                regex: "^data:",
+              },
+            },
+          },
+        },
+      ]),
       Product.countDocuments(query),
       // Cache categories - they don't change often
       Category.find({ isActive: true }).select("_id name slug").sort({ name: 1 }).lean(),
@@ -192,7 +251,8 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                   name: string;
                   slug: string;
                   sku: string;
-                  images?: string[];
+                  thumbnailUrl?: string | null;
+                  hasEmbeddedImage?: boolean;
                   category?: { name: string; slug: string };
                   priceB2C: number;
                   priceB2B: number;
@@ -204,9 +264,15 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-muted">
-                          {product.images?.[0] ? (
+                          {product.thumbnailUrl || product.hasEmbeddedImage ? (
                             <Image
-                              src={product.images[0]}
+                              // Use the URL when there is one; otherwise load
+                              // the base64 image through the thumbnail route so
+                              // it stays out of this page's payload.
+                              src={
+                                product.thumbnailUrl ??
+                                `/api/admin/products/${product._id}/thumbnail`
+                              }
                               alt={product.name}
                               width={48}
                               height={48}
