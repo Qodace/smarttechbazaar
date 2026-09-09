@@ -1,4 +1,4 @@
- # Before Publishing — Smart Tech Bazaar Mobile App
+# Before Publishing — Smart Tech Bazaar Mobile App
 
 This document covers every step needed to publish the Smart Tech Bazaar app to the Google Play Store and Apple App Store using Median.co as your wrapper.
 
