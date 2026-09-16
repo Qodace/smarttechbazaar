@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     switch (type) {
       case "welcome":
         emailHtml = welcomeEmailTemplate("Test User");
-        subject = "Welcome to SabKaTechBazar!";
+        subject = "Welcome to SmartTechBazaar!";
         break;
 
       case "new_user":
