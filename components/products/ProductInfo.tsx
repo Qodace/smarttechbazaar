@@ -193,7 +193,7 @@ export default function ProductInfo({ product }: ProductInfoProps) {
               </div>
             </div>
             <p className="mt-1.5 text-[10px] text-muted-foreground md:text-[11px]">
-              Inclusive of all taxes ({GST_RATE}% GST)
+              Inclusive of all taxes
             </p>
             <div className="mt-1 flex flex-wrap items-center gap-2">
               {mrp > price && (
